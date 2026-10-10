@@ -37,9 +37,9 @@ export async function sendMagicLinkEmail(email: string, url: string) {
   await send({
     to: email,
     subject: `Your sign-in link for ${site.name}`,
-    text: `Sign in to view your job reports:\n${url}\n\nThis link expires in 15 minutes. If you didn't request it, ignore this email.`,
+    text: `Sign in to view your inspection reports:\n${url}\n\nThis link expires in 15 minutes. If you didn't request it, ignore this email.`,
     html: wrap(
-      `<p>Use the button below to sign in and view your job reports.</p>
+      `<p>Use the button below to sign in and view your inspection reports.</p>
 ${button(url, "Sign in")}
 <p style="font-size:13px;color:#6B7570">This link expires in 15 minutes. If you didn't request it, you can ignore this email.</p>`,
     ),
@@ -47,16 +47,17 @@ ${button(url, "Sign in")}
 }
 
 export async function sendEnquiryEmail(e: {
-  name: string; email: string; phone: string; postcode: string; pest: string; message: string;
+  name: string; email: string; phone: string; propertyAddress: string; service: string; neededBy: string; message: string;
 }) {
   const rows: [string, string][] = [
     ["Name", e.name], ["Phone", e.phone], ["Email", e.email],
-    ["Postcode", e.postcode], ["Pest", e.pest], ["Message", e.message],
+    ["Property", e.propertyAddress], ["Inspection", e.service],
+    ["Report needed by", e.neededBy || "Not given"], ["Message", e.message || "None"],
   ];
   await send({
     to: process.env.BUSINESS_EMAIL ?? site.email,
     replyTo: e.email,
-    subject: `New enquiry: ${e.pest} (${e.postcode})`,
+    subject: `New enquiry: ${e.service}, ${e.propertyAddress}`,
     text: rows.map(([k, v]) => `${k}: ${v}`).join("\n"),
     html: wrap(
       `<h2 style="margin:0 0 16px">New website enquiry</h2>
@@ -71,15 +72,15 @@ export async function sendEnquiryEmail(e: {
   });
 }
 
-export async function sendJobReadyEmail(email: string, name: string, jobNumber: string) {
+export async function sendJobReadyEmail(email: string, name: string, jobNumber: string, address: string) {
   const url = `${site.url}/login`;
   await send({
     to: email,
-    subject: `Your report for job ${jobNumber} is ready`,
-    text: `Hi ${name},\n\nYour report for job ${jobNumber} is ready, including photos from the visit. Sign in with this email address to view it:\n${url}`,
+    subject: `Your inspection report for ${address} is ready`,
+    text: `Hi ${name},\n\nYour inspection report for ${address} (job ${jobNumber}) is ready, including photos from the inspection. Sign in with this email address to view it:\n${url}`,
     html: wrap(
       `<p>Hi ${escapeHtml(name)},</p>
-<p>Your report for job ${escapeHtml(jobNumber)} is ready, including photos from the visit. Sign in with this email address to view it.</p>
+<p>Your inspection report for ${escapeHtml(address)} (job ${escapeHtml(jobNumber)}) is ready, including photos from the inspection. Sign in with this email address to view it.</p>
 ${button(url, "View your report")}`,
     ),
   });

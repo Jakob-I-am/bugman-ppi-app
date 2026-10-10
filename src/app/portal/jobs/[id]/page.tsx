@@ -2,16 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import { reportInclude } from "@/lib/report/load";
 import { JobReport } from "@/components/JobReport";
 
 export default async function PortalJob({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
 
-  // The ownership check lives in the query itself: another customer's job id simply isn't found.
+  // Ownership is part of the query: another client's job id simply isn't found.
   const job = await prisma.job.findFirst({
     where: { id, customerId: user.id, status: "FINALISED" },
-    include: { customer: { select: { name: true } }, photos: { orderBy: { createdAt: "asc" }, select: { id: true, fieldKey: true } } },
+    include: reportInclude,
   });
   if (!job) notFound();
 

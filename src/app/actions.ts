@@ -10,8 +10,9 @@ const enquirySchema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(120),
   email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email address")),
   phone: z.string().trim().min(6, "Enter a phone number").max(40),
-  postcode: z.string().trim().min(2, "Enter your postcode").max(12),
-  pest: z.string().trim().min(1, "Choose a pest").max(60),
+  propertyAddress: z.string().trim().min(3, "Enter the property address").max(300),
+  service: z.string().trim().min(1, "Choose an inspection type").max(60),
+  neededBy: z.string().trim().max(20).default(""),
   message: z.string().trim().max(3000).default(""),
 });
 

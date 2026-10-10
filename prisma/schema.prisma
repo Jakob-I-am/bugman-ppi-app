@@ -81,44 +81,105 @@ enum JobStatus {
   FINALISED
 }
 
+enum ReportType {
+  BUILDING_AND_PEST
+  BUILDING
+  TIMBER_PEST
+}
+
+enum FindingCategory {
+  MAJOR_DEFECT
+  SAFETY_HAZARD
+  MINOR_DEFECT
+  TIMBER_PEST
+  CONDUCIVE_CONDITION
+  FURTHER_INSPECTION
+  OBSERVATION
+}
+
 model Job {
-  id          String    @id @default(cuid())
-  number      Int       @unique @default(autoincrement())
-  customerId  String
-  customer    User      @relation(fields: [customerId], references: [id])
-  siteAddress String
-  visitDate   DateTime?
-  status      JobStatus @default(DRAFT)
-  /// Form answers keyed by field key from src/lib/job-form.ts
-  answers     Json      @default("{}")
-  finalisedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  photos      Photo[]
+  id              String          @id @default(cuid())
+  number          Int             @unique @default(autoincrement())
+  customerId      String
+  customer        User            @relation(fields: [customerId], references: [id])
+  propertyAddress String
+  reportType      ReportType      @default(BUILDING_AND_PEST)
+  status          JobStatus       @default(DRAFT)
+  /// Answers for the fixed report parts (src/lib/report/frame.ts)
+  answers         Json            @default("{}")
+  finalisedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  sections        ReportSection[]
+  photos          Photo[]
 
   @@index([customerId, status])
 }
 
-model Photo {
-  id            String    @id @default(cuid())
-  jobId         String
-  job           Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  fieldKey      String
-  pathname      String    // full-size image in the private Blob store
-  thumbPathname String    // ~480px thumbnail
-  takenAt       DateTime?
-  createdAt     DateTime  @default(now())
+/// One area of the report (a room, the roof space...), added as needed.
+model ReportSection {
+  id          String    @id @default(cuid())
+  jobId       String
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  templateKey String
+  title       String
+  position    Int
+  answers     Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  findings    Finding[]
+  photos      Photo[]
 
-  @@index([jobId, fieldKey])
+  @@index([jobId, position])
+}
+
+/// A defect, safety hazard, pest finding or recommendation within a section.
+model Finding {
+  id             String          @id @default(cuid())
+  sectionId      String
+  section        ReportSection   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  category       FindingCategory
+  element        String          @default("")
+  location       String          @default("")
+  description    String          @default("")
+  recommendation String          @default("")
+  /// Category-specific choice, e.g. termite type or specialist to refer to
+  detail         String          @default("")
+  position       Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  photos         Photo[]
+
+  @@index([sectionId, position])
+}
+
+/// A photo belongs to a finding, or to a section generally.
+model Photo {
+  id            String         @id @default(cuid())
+  jobId         String
+  job           Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  sectionId     String?
+  section       ReportSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  findingId     String?
+  finding       Finding?       @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  pathname      String
+  thumbPathname String
+  takenAt       DateTime?
+  createdAt     DateTime       @default(now())
+
+  @@index([jobId])
+  @@index([sectionId])
+  @@index([findingId])
 }
 
 model Enquiry {
-  id        String   @id @default(cuid())
-  name      String
-  email     String
-  phone     String
-  postcode  String
-  pest      String
-  message   String
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  name            String
+  email           String
+  phone           String
+  propertyAddress String
+  service         String
+  neededBy        String
+  message         String
+  createdAt       DateTime @default(now())
 }

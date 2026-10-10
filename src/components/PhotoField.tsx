@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { upload } from "@vercel/blob/client";
-import { addPhoto, deletePhoto } from "@/app/admin/actions";
+import { addPhoto, deletePhoto, type PhotoTarget } from "@/app/admin/actions";
 
 export type PhotoItem = { id: string; thumbUrl: string; fullUrl: string };
 type Pending = { key: string; name: string; state: "waiting" | "uploading" | "failed" };
@@ -21,7 +21,7 @@ function compress(file: File, maxWidthOrHeight: number, maxSizeMB: number) {
   });
 }
 
-export function PhotoField({ jobId, fieldKey, label, initial }: { jobId: string; fieldKey: string; label: string; initial: PhotoItem[] }) {
+export function PhotoField({ jobId, target, label, initial }: { jobId: string; target: PhotoTarget; label: string; initial: PhotoItem[] }) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initial);
   const [pending, setPending] = useState<Pending[]>([]);
   const files = useRef(new Map<string, File>());
@@ -39,7 +39,7 @@ export function PhotoField({ jobId, fieldKey, label, initial }: { jobId: string;
     setItem(key, "uploading");
     try {
       const [full, thumb] = await Promise.all([compress(file, 2560, 0.6), compress(file, 480, 0.05)]);
-      const base = `jobs/${jobId}/${fieldKey}/${key}`;
+      const base = `jobs/${jobId}/${key}`;
       const options = {
         access: "private" as const,
         handleUploadUrl: "/api/upload",
@@ -52,7 +52,7 @@ export function PhotoField({ jobId, fieldKey, label, initial }: { jobId: string;
       ]);
       const photo = await addPhoto({
         jobId,
-        fieldKey,
+        target,
         pathname: fullBlob.pathname,
         thumbPathname: thumbBlob.pathname,
         takenAt: file.lastModified, // compression strips EXIF, so keep the capture time here
@@ -100,7 +100,7 @@ export function PhotoField({ jobId, fieldKey, label, initial }: { jobId: string;
   return (
     <div className="mt-3">
       {photos.length > 0 && (
-        <ul className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+        <ul className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
           {photos.map((p) => (
             <li key={p.id} className="relative">
               <a href={p.fullUrl} target="_blank" rel="noopener" className="block overflow-hidden rounded-md">

@@ -2,9 +2,11 @@ export function jobNumber(n: number) {
   return `#${n.toString().padStart(4, "0")}`;
 }
 
-export function formatDate(d: Date | null | undefined) {
+export function formatDate(d: Date | string | null | undefined) {
   if (!d) return "Not set";
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const date = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(date.getTime())) return "Not set";
+  return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function photoUrls(id: string) {

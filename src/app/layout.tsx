@@ -11,13 +11,13 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  title: { default: `${site.name} | Pest control in ${site.area}`, template: `%s | ${site.name}` },
-  description: `Pest control for homes and businesses across ${site.area}. Every visit comes with a photo report you can view online.`,
+  title: { default: `${site.name} | Building and pest inspections in ${site.area}`, template: `%s | ${site.name}` },
+  description: `Pre-purchase building and timber pest inspections across ${site.area}, with photo reports you can view online.`,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-GB" className={archivo.variable}>
+    <html lang="en-AU" className={archivo.variable}>
       <body className="min-h-dvh font-sans antialiased">{children}</body>
     </html>
   );

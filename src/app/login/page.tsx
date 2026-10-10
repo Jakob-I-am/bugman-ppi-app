@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="m-auto w-full max-w-sm rounded-lg bg-white p-7">
         <h1 className="display text-4xl text-pine">Sign in</h1>
         <p className="mb-6 mt-2 text-stone">
-          Enter the email address you gave us. We&apos;ll send you a link to view your job reports.
+          Enter the email address you gave us. We&apos;ll send you a link to view your inspection reports.
         </p>
         {error && (
           <p role="alert" className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
