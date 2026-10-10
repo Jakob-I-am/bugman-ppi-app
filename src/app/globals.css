@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pine: #1f3d2b;
+  --color-pine-dark: #142a1d;
+  --color-moss: #3e6b4f;
+  --color-signal: #f2c230;
+  --color-paper: #f7f8f4;
+  --color-ink: #1c2321;
+  --color-stone: #5f6a65;
+  --color-line: #d9ddd5;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Condensed headline style: Archivo's width axis pulled in, like trade signage. */
+.display {
+  font-variation-settings: "wdth" 68;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+}
+
+/* Warning-tape band used once on the landing page. */
+.tape {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-signal) 0 18px,
+    var(--color-pine-dark) 18px 36px
+  );
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+/* Defined with @utility so the variants below can @apply it (Tailwind v4). */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-5 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@layer components {
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-ink;
+  }
+  /* 16px text stops iOS zooming into inputs */
+  .input {
+    @apply w-full rounded-md border border-line bg-white px-3 py-2.5 text-base text-ink placeholder:text-stone/70 focus:border-pine focus:outline-none focus:ring-2 focus:ring-pine/25;
+  }
+  .btn-primary {
+    @apply btn bg-pine text-white hover:bg-pine-dark;
+  }
+  .btn-signal {
+    @apply btn bg-signal text-pine-dark hover:bg-[#e3b31f];
+  }
+  .btn-quiet {
+    @apply btn border border-line bg-white text-ink hover:bg-paper;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+// ---------- Better Auth tables ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("customer") // "admin" | "customer"
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  jobs          Job[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------- App tables ----------
+
+enum JobStatus {
+  DRAFT
+  FINALISED
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  number      Int       @unique @default(autoincrement())
+  customerId  String
+  customer    User      @relation(fields: [customerId], references: [id])
+  siteAddress String
+  visitDate   DateTime?
+  status      JobStatus @default(DRAFT)
+  /// Form answers keyed by field key from src/lib/job-form.ts
+  answers     Json      @default("{}")
+  finalisedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  photos      Photo[]
+
+  @@index([customerId, status])
+}
+
+model Photo {
+  id            String    @id @default(cuid())
+  jobId         String
+  job           Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  fieldKey      String
+  pathname      String    // full-size image in the private Blob store
+  thumbPathname String    // ~480px thumbnail
+  takenAt       DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([jobId, fieldKey])
+}
+
+model Enquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  postcode  String
+  pest      String
+  message   String
+  createdAt DateTime @default(now())
+}
