@@ -1,10 +1,10 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
-  --color-pine: #1f3d2b;
-  --color-pine-dark: #142a1d;
-  --color-moss: #3e6b4f;
-  --color-signal: #f2c230;
+  --color-pine: #5515a6;
+  --color-pine-dark: #1a8c51;
+  --color-moss: #75be2a;
+  --color-signal: #75be2a;
   --color-paper: #f7f8f4;
   --color-ink: #1c2321;
   --color-stone: #5f6a65;
@@ -24,7 +24,7 @@ body {
 
 /* Condensed headline style: Archivo's width axis pulled in, like trade signage. */
 .display {
-  font-variation-settings: "wdth" 68;
+  font-variation-settings: 'wdth' 68;
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: -0.01em;
