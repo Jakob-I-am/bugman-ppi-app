@@ -22,6 +22,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  passkeys      Passkey[]
   jobs          Job[]
 
   @@map("user")
@@ -72,6 +73,26 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+/// Passkeys (Face ID, fingerprint, security key). Only the admin can register them.
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  aaguid       String?
+  createdAt    DateTime? @default(now())
+
+  @@index([userId])
+  @@index([credentialID])
+  @@map("passkey")
 }
 
 // ---------- App tables ----------

@@ -9,7 +9,8 @@ import type { Answers } from "@/lib/report/fields";
 export const metadata = { title: "Jobs" };
 
 export default async function AdminHome() {
-  await requireAdmin();
+  const user = await requireAdmin();
+  const passkeyCount = await prisma.passkey.count({ where: { userId: user.id } });
   const jobs = await prisma.job.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -22,6 +23,15 @@ export default async function AdminHome() {
 
   return (
     <>
+      {passkeyCount === 0 && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-signal bg-white p-4">
+          <p className="max-w-md text-sm">
+            <strong>Add a passkey to protect this account.</strong> Sign in with Face ID or your fingerprint
+            instead of an email link.
+          </p>
+          <Link href="/admin/security" className="btn-primary px-4 py-2 text-sm">Add a passkey</Link>
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="display text-5xl text-pine">Jobs</h1>
         <Link href="/admin/jobs/new" className="btn-primary">New job</Link>
