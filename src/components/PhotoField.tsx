@@ -25,6 +25,9 @@ export function PhotoField({ jobId, target, label, initial }: { jobId: string; t
   const [photos, setPhotos] = useState<PhotoItem[]>(initial);
   const [pending, setPending] = useState<Pending[]>([]);
   const files = useRef(new Map<string, File>());
+  // Changing this key swaps in a brand-new <input> after every pick. iOS names every
+  // camera photo "image.jpg", and reusing the same input can stop the second pick firing.
+  const [inputKey, setInputKey] = useState(0);
 
   const setItem = (key: string, state: Pending["state"]) =>
     setPending((list) => list.map((p) => (p.key === key ? { ...p, state } : p)));
@@ -65,9 +68,15 @@ export function PhotoField({ jobId, target, label, initial }: { jobId: string; t
     }
   }
 
-  async function handleFiles(list: FileList | null) {
-    if (!list || list.length === 0) return;
-    const keys = Array.from(list).map((file) => {
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []); // copy before the input is replaced
+    setInputKey((k) => k + 1);
+    void handleFiles(picked);
+  }
+
+  async function handleFiles(list: File[]) {
+    if (list.length === 0) return;
+    const keys = list.map((file) => {
       const key = crypto.randomUUID();
       files.current.set(key, file);
       return { key, name: file.name };
@@ -124,13 +133,11 @@ export function PhotoField({ jobId, target, label, initial }: { jobId: string; t
         {/* capture opens the camera directly; the second input opens the photo library */}
         <label className="btn-quiet cursor-pointer px-4 py-2 text-sm">
           Take photo
-          <input type="file" accept="image/*" capture="environment" className="sr-only"
-            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+          <input key={`camera-${inputKey}`} type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPick} />
         </label>
         <label className="btn-quiet cursor-pointer px-4 py-2 text-sm">
           Add from library
-          <input type="file" accept="image/*" multiple className="sr-only"
-            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+          <input key={`library-${inputKey}`} type="file" accept="image/*" multiple className="sr-only" onChange={onPick} />
         </label>
         <span className="text-sm text-stone" role="status">
           {photos.length} {photos.length === 1 ? "photo" : "photos"}
