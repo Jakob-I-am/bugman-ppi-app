@@ -1,7 +1,7 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 /**
  * Issues short-lived tokens so the browser can upload photos straight to the
@@ -16,16 +16,23 @@ export async function POST(request: Request) {
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const session = await auth.api.getSession({ headers: request.headers });
-        if (session?.user.role !== "admin") throw new Error("Not authorised");
+        if (session?.user.role !== 'admin') throw new Error('Not authorised');
 
-        const { jobId } = JSON.parse(clientPayload ?? "{}") as { jobId?: string };
-        if (!jobId || !pathname.startsWith(`jobs/${jobId}/`)) throw new Error("Invalid upload path");
+        const { jobId } = JSON.parse(clientPayload ?? '{}') as {
+          jobId?: string;
+        };
+        if (!jobId || !pathname.startsWith(`jobs/${jobId}/`))
+          throw new Error('Invalid upload path');
 
-        const job = await prisma.job.findUnique({ where: { id: jobId }, select: { status: true } });
-        if (!job || job.status !== "DRAFT") throw new Error("This job can't be edited");
+        const job = await prisma.job.findUnique({
+          where: { id: jobId },
+          select: { status: true },
+        });
+        if (!job || job.status !== 'DRAFT')
+          throw new Error("This job can't be edited");
 
         return {
-          allowedContentTypes: ["image/jpeg"],
+          allowedContentTypes: ['image/jpeg'],
           maximumSizeInBytes: 8 * 1024 * 1024,
           addRandomSuffix: false, // paths already contain a UUID
         };
@@ -36,6 +43,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(json);
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    console.error('upload token error:', (error as Error).message);
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 },
+    );
   }
 }
