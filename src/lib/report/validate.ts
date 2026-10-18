@@ -1,6 +1,6 @@
 import { isBlank, missingRequired, type Answers } from "./fields";
 import { frameFor } from "./frame";
-import { requiredBuildingAreas } from "./sections";
+import { getTemplate, requiredBuildingAreas } from "./sections";
 import { categories } from "./findings";
 import { includesBuilding, includesPest, inScope } from "./types";
 import type { ReportJob } from "./load";
@@ -29,6 +29,8 @@ export function reportProblems(job: ReportJob): string[] {
   for (const s of job.sections) {
     const a = (s.answers ?? {}) as Answers;
     if (isBlank(a.access)) problems.push(`${s.title}: choose the access level`);
+    if (includesBuilding(type) && getTemplate(s.templateKey).smokeAlarm && isBlank(a.smokeAlarm))
+      problems.push(`${s.title}: record whether a smoke alarm is present`);
     else if (a.access !== "Fully accessible" && isBlank(a.accessReason)) problems.push(`${s.title}: explain what limited access`);
 
     s.findings.forEach((f, i) => {

@@ -12,6 +12,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { ReportEditor } from "@/components/editor/ReportEditor";
 import type { EditorSection } from "@/components/editor/types";
 import { reopenJob } from "../../actions";
+import { DuplicatePanel } from "@/components/DuplicatePanel";
 
 export default async function AdminJobPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
@@ -22,15 +23,16 @@ export default async function AdminJobPage({ params }: { params: Promise<{ id: s
   if (job.status === "FINALISED") {
     return (
       <>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link href="/admin" className="text-sm font-semibold text-pine">Back to jobs</Link>
+        <Link href="/admin" className="text-sm font-semibold text-pine">Back to jobs</Link>
+        <div className="mt-4 flex flex-wrap items-start gap-3">
           <form action={reopenJob.bind(null, job.id)}>
             <ConfirmButton className="btn-quiet" message="Reopen this report? The client won't see it until you finalise it again.">
               Reopen for editing
             </ConfirmButton>
           </form>
+          <DuplicatePanel jobId={job.id} />
         </div>
-        <div className="mt-4"><JobReport job={job} showInternal /></div>
+        <div className="mt-6"><JobReport job={job} showInternal pdfHref={`/api/reports/${job.id}/pdf`} /></div>
       </>
     );
   }
@@ -60,7 +62,9 @@ export default async function AdminJobPage({ params }: { params: Promise<{ id: s
         <h1 className="display mt-1 text-4xl text-pine sm:text-5xl">{job.propertyAddress}</h1>
         <p className="mt-2 text-sm text-stone">
           Client: {job.customer.name}, {job.customer.email}{job.customer.phone ? `, ${job.customer.phone}` : ""}
+          {job.copiedFromNumber ? `. Copied from job ${jobNumber(job.copiedFromNumber)}.` : ""}
         </p>
+        <div className="mt-4"><DuplicatePanel jobId={job.id} /></div>
       </header>
 
       <ReportEditor jobId={job.id} reportType={job.reportType} frameAnswers={job.answers as Answers} initialSections={sections} />

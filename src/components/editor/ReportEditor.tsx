@@ -1,23 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Answers } from "@/lib/report/fields";
 import { sectionTemplates, getTemplate } from "@/lib/report/sections";
-import type { ReportType } from "@/lib/report/types";
+import { includesBuilding, type ReportType } from "@/lib/report/types";
 import { addSection, deleteSection, moveSection, saveFrameAnswers } from "@/app/admin/actions";
 import { FrameEditor } from "./FrameEditor";
 import { SectionCard } from "./SectionCard";
 import { FinalisePanel } from "./FinalisePanel";
-import { useAutosave } from "./useAutosave";
+import { flushAll, useAutosave } from "./useAutosave";
 import type { EditorSection } from "./types";
+
+type SectionMeta = EditorSection & { smokeAlarm?: string };
 
 export function ReportEditor({ jobId, reportType, frameAnswers, initialSections }: {
   jobId: string; reportType: ReportType; frameAnswers: Answers; initialSections: EditorSection[];
 }) {
-  const [sections, setSections] = useState(initialSections);
+  const [sections, setSections] = useState<SectionMeta[]>(
+    initialSections.map((s) => ({ ...s, smokeAlarm: typeof s.answers.smokeAlarm === "string" ? s.answers.smokeAlarm : undefined })),
+  );
   const [templateKey, setTemplateKey] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<"" | "saving" | "saved" | "error">("");
   const [frame, setFrame] = useState<Answers>(frameAnswers ?? {});
   const frameSave = useAutosave((a: Answers) => saveFrameAnswers(jobId, a));
 
@@ -26,7 +32,35 @@ export function ReportEditor({ jobId, reportType, frameAnswers, initialSections 
     setFrame(next);
     frameSave.schedule(next);
   };
-  const frameProps = { reportType, answers: frame, onChange: updateFrame, saveState: frameSave.state, onRetry: frameSave.retry };
+  const patchSection = (id: string, changes: Partial<SectionMeta>) =>
+    setSections((list) => list.map((s) => (s.id === id ? { ...s, ...changes } : s)));
+
+  async function saveNow() {
+    setSaveMessage("saving");
+    const ok = await flushAll();
+    setSaveMessage(ok ? "saved" : "error");
+    if (ok) setTimeout(() => setSaveMessage(""), 3000);
+  }
+
+  // Smoke alarm summary shown above the compliance question.
+  const alarmAreas = sections.filter((s) => getTemplate(s.templateKey).smokeAlarm);
+  const withAlarm = alarmAreas.filter((s) => s.smokeAlarm === "Yes");
+  const withoutAlarm = alarmAreas.filter((s) => s.smokeAlarm === "No");
+  const unanswered = alarmAreas.filter((s) => !s.smokeAlarm);
+  const smokeSummary = includesBuilding(reportType) ? (
+    <dl className="mt-4 grid gap-3 rounded-md bg-paper p-4 text-sm">
+      <div><dt className="font-semibold">Smoke alarms found in</dt><dd>{withAlarm.map((s) => s.title).join(", ") || "None"}</dd></div>
+      <div><dt className="font-semibold">No smoke alarm in</dt><dd>{withoutAlarm.map((s) => s.title).join(", ") || "None"}</dd></div>
+      {unanswered.length > 0 && (
+        <div className="text-red-800"><dt className="font-semibold">Not recorded yet</dt><dd>{unanswered.map((s) => s.title).join(", ")}</dd></div>
+      )}
+    </dl>
+  ) : null;
+
+  const frameProps = {
+    reportType, answers: frame, onChange: updateFrame, saveState: frameSave.state, onRetry: frameSave.retry,
+    extras: { smokeAlarms: smokeSummary },
+  };
 
   const existingKeys = new Set(sections.map((s) => s.templateKey));
   const available = sectionTemplates.filter((t) => t.repeatable || !existingKeys.has(t.key));
@@ -72,15 +106,30 @@ export function ReportEditor({ jobId, reportType, frameAnswers, initialSections 
 
   return (
     <div className="mt-6">
-      <nav aria-label="Report sections"
-        className="sticky top-0 z-10 -mx-5 flex gap-4 overflow-x-auto border-b border-line bg-paper/95 px-5 py-3 text-sm font-semibold whitespace-nowrap backdrop-blur">
-        <a href="#frame-property" className="text-pine hover:underline">Details</a>
-        {sections.map((s) => (
-          <a key={s.id} href={`#s-${s.id}`} className="text-pine hover:underline">{s.title}</a>
-        ))}
-        <a href="#add-section" className="text-pine hover:underline">Add area</a>
-        <a href="#conclusion" className="text-pine hover:underline">Conclusion</a>
-      </nav>
+      <div className="sticky top-0 z-10 -mx-5 border-b border-line bg-paper/95 px-5 py-2 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <nav aria-label="Report sections" className="flex min-w-0 gap-4 overflow-x-auto py-1 text-sm font-semibold whitespace-nowrap">
+            <a href="#frame-property" className="text-pine hover:underline">Details</a>
+            {sections.map((s) => (
+              <a key={s.id} href={`#s-${s.id}`} className="text-pine hover:underline">{s.title}</a>
+            ))}
+            <a href="#add-section" className="text-pine hover:underline">Add area</a>
+            <a href="#conclusion" className="text-pine hover:underline">Conclusion</a>
+          </nav>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href={`/admin/jobs/${jobId}/preview`} className="btn-quiet px-3 py-1.5 text-sm"
+              onClick={(e) => { e.preventDefault(); flushAll().then(() => { window.location.href = `/admin/jobs/${jobId}/preview`; }); }}>
+              Preview
+            </Link>
+            <button type="button" className="btn-primary px-3 py-1.5 text-sm" onClick={saveNow} disabled={saveMessage === "saving"}>
+              {saveMessage === "saving" ? "Saving…" : saveMessage === "saved" ? "Saved ✓" : "Save"}
+            </button>
+          </div>
+        </div>
+        {saveMessage === "error" && (
+          <p role="alert" className="mt-1 text-sm text-red-800">Some changes didn&apos;t save. Check your signal and press Save again.</p>
+        )}
+      </div>
 
       <div className="mt-6 grid gap-5">
         <FrameEditor {...frameProps} part="start" />
@@ -95,6 +144,8 @@ export function ReportEditor({ jobId, reportType, frameAnswers, initialSections 
             isLast={i === sections.length - 1}
             onMove={(dir) => move(i, dir)}
             onDelete={() => remove(s.id, s.title)}
+            onSmokeAlarmChange={(v) => patchSection(s.id, { smokeAlarm: v })}
+            onTitleChange={(t) => patchSection(s.id, { title: t })}
           />
         ))}
 

@@ -6,10 +6,10 @@ export const reportInclude = {
   sections: {
     orderBy: { position: "asc" },
     include: {
-      photos: { orderBy: { createdAt: "asc" }, select: { id: true } },
+      photos: { orderBy: { createdAt: "asc" }, select: { id: true, thumbPathname: true } },
       findings: {
         orderBy: { position: "asc" },
-        include: { photos: { orderBy: { createdAt: "asc" }, select: { id: true } } },
+        include: { photos: { orderBy: { createdAt: "asc" }, select: { id: true, thumbPathname: true } } },
       },
     },
   },

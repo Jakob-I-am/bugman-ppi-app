@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { Answers } from "@/lib/report/fields";
-import { accessFields, getTemplate } from "@/lib/report/sections";
+import { accessFields, getTemplate, smokeAlarmField } from "@/lib/report/sections";
 import { categories, categoriesFor, type FindingCategory } from "@/lib/report/findings";
-import type { ReportType } from "@/lib/report/types";
+import { includesBuilding, type ReportType } from "@/lib/report/types";
 import { addFinding, renameSection, saveSectionAnswers } from "@/app/admin/actions";
 import { PhotoField } from "@/components/PhotoField";
 import { FieldInput } from "./FieldInput";
@@ -12,7 +12,7 @@ import { FindingEditor } from "./FindingEditor";
 import { SaveBadge, useAutosave } from "./useAutosave";
 import type { EditorSection } from "./types";
 
-export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMove, onDelete }: {
+export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMove, onDelete, onSmokeAlarmChange, onTitleChange }: {
   jobId: string;
   reportType: ReportType;
   section: EditorSection;
@@ -20,6 +20,8 @@ export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMov
   isLast: boolean;
   onMove: (dir: "up" | "down") => void;
   onDelete: () => void;
+  onSmokeAlarmChange: (value: string) => void;
+  onTitleChange: (title: string) => void;
 }) {
   const template = getTemplate(section.templateKey);
   const [title, setTitle] = useState(section.title);
@@ -39,7 +41,9 @@ export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMov
     const next = { ...answers, [key]: value };
     setAnswers(next);
     answersSave.schedule(next);
+    if (key === "smokeAlarm") onSmokeAlarmChange(String(value));
   };
+  const askSmokeAlarm = includesBuilding(reportType) && template.smokeAlarm;
 
   async function add() {
     if (!newCategory) return;
@@ -68,6 +72,7 @@ export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMov
             {template.label}
             {answers.access ? `, ${String(answers.access).toLowerCase()}` : ", access not recorded"}
             {`, ${findings.length} ${findings.length === 1 ? "finding" : "findings"}`}
+            {askSmokeAlarm && answers.smokeAlarm ? `, smoke alarm: ${String(answers.smokeAlarm).toLowerCase()}` : ""}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
@@ -81,7 +86,7 @@ export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMov
           <div className="min-w-48 flex-1">
             <label className="label" htmlFor={`title-${section.id}`}>Section name</label>
             <input id={`title-${section.id}`} className="input" value={title}
-              onChange={(e) => { setTitle(e.target.value); titleSave.schedule(e.target.value); }} />
+              onChange={(e) => { setTitle(e.target.value); titleSave.schedule(e.target.value); onTitleChange(e.target.value); }} />
           </div>
           <div className="flex gap-2">
             <button type="button" className="btn-quiet px-3 py-2.5 text-sm" disabled={isFirst} onClick={() => onMove("up")} aria-label="Move section up">↑</button>
@@ -146,6 +151,13 @@ export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMov
             </button>
           </div>
         </div>
+
+        {askSmokeAlarm && (
+          <div className="border-t border-line pt-5 sm:max-w-xs">
+            <FieldInput id={`${section.id}-smoke`} field={smokeAlarmField} value={answers.smokeAlarm}
+              onChange={(v) => update("smokeAlarm", v)} />
+          </div>
+        )}
       </div>
     </details>
   );

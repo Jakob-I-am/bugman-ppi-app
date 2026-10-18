@@ -39,9 +39,28 @@ async function draftFinding(findingId: string) {
   return finding;
 }
 
+/**
+ * Deletes photo files from Blob once no photo row uses them any more.
+ * Duplicated reports share the original's files, so a file is only removed
+ * when the last report using it lets go. Call after deleting the rows.
+ */
 async function deleteBlobs(photos: { pathname: string; thumbPathname: string }[]) {
   const paths = photos.flatMap((p) => [p.pathname, p.thumbPathname]);
-  if (paths.length) await del(paths);
+  if (!paths.length) return;
+  const stillUsed = await prisma.photo.findMany({
+    where: { OR: [{ pathname: { in: paths } }, { thumbPathname: { in: paths } }] },
+    select: { pathname: true, thumbPathname: true },
+  });
+  const keep = new Set(stillUsed.flatMap((p) => [p.pathname, p.thumbPathname]));
+  const unused = paths.filter((p) => !keep.has(p));
+  if (unused.length) await del(unused);
+}
+
+async function findOrCreateCustomer(email: string, name: string, phone: string) {
+  return (
+    (await prisma.user.findUnique({ where: { email } })) ??
+    (await prisma.user.create({ data: { email, name, phone: phone || null, role: "customer" } }))
+  );
 }
 
 // ---------- Create ----------
@@ -65,11 +84,7 @@ export async function createJob(_prev: CreateJobState, formData: FormData): Prom
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const d = parsed.data;
 
-  const customer =
-    (await prisma.user.findUnique({ where: { email: d.customerEmail } })) ??
-    (await prisma.user.create({
-      data: { email: d.customerEmail, name: d.customerName, phone: d.customerPhone || null, role: "customer" },
-    }));
+  const customer = await findOrCreateCustomer(d.customerEmail, d.customerName, d.customerPhone);
 
   const starting = d.standardAreas ? defaultSections : [];
   const job = await prisma.job.create({
@@ -89,6 +104,77 @@ export async function createJob(_prev: CreateJobState, formData: FormData): Prom
   });
 
   redirect(`/admin/jobs/${job.id}`);
+}
+
+// ---------- Duplicate for another client ----------
+
+export type DuplicateState = { error?: string };
+
+const duplicateSchema = z.object({
+  customerName: z.string().trim().min(1, "Enter the client's name").max(120),
+  customerEmail: z.string().trim().toLowerCase().pipe(z.email("Enter a valid client email")),
+  customerPhone: z.string().trim().max(40).default(""),
+  agreementRef: z.string().trim().min(1, "Enter this client's agreement reference").max(100),
+  agreementDate: z.string().min(1, "Enter the date this client accepted the agreement"),
+});
+
+/**
+ * Copies a report (details, areas, findings and photos) to a new draft job for a
+ * different client. Photo files are shared, not copied, so it costs no storage.
+ */
+export async function duplicateJob(sourceId: string, _prev: DuplicateState, formData: FormData): Promise<DuplicateState> {
+  await requireAdmin();
+  const parsed = duplicateSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const d = parsed.data;
+
+  const source = await prisma.job.findUnique({
+    where: { id: sourceId },
+    include: {
+      sections: {
+        orderBy: { position: "asc" },
+        include: { photos: true, findings: { orderBy: { position: "asc" }, include: { photos: true } } },
+      },
+    },
+  });
+  if (!source) return { error: "Original job not found" };
+
+  const customer = await findOrCreateCustomer(d.customerEmail, d.customerName, d.customerPhone);
+  const answers = { ...((source.answers ?? {}) as Record<string, unknown>), agreementRef: d.agreementRef, agreementDate: d.agreementDate };
+
+  const newId = await prisma.$transaction(async (tx) => {
+    const job = await tx.job.create({
+      data: {
+        customerId: customer.id,
+        propertyAddress: source.propertyAddress,
+        reportType: source.reportType,
+        answers: answers as Prisma.InputJsonValue,
+        copiedFromNumber: source.number,
+      },
+    });
+    const photoRow = (p: { pathname: string; thumbPathname: string; takenAt: Date | null }) => ({
+      jobId: job.id, pathname: p.pathname, thumbPathname: p.thumbPathname, takenAt: p.takenAt,
+    });
+    for (const s of source.sections) {
+      const section = await tx.reportSection.create({
+        data: { jobId: job.id, templateKey: s.templateKey, title: s.title, position: s.position, answers: s.answers as Prisma.InputJsonValue },
+      });
+      if (s.photos.length) await tx.photo.createMany({ data: s.photos.map((p) => ({ ...photoRow(p), sectionId: section.id })) });
+      for (const f of s.findings) {
+        const finding = await tx.finding.create({
+          data: {
+            sectionId: section.id, category: f.category, element: f.element, location: f.location,
+            description: f.description, recommendation: f.recommendation, detail: f.detail, position: f.position,
+          },
+        });
+        if (f.photos.length) await tx.photo.createMany({ data: f.photos.map((p) => ({ ...photoRow(p), findingId: finding.id })) });
+      }
+    }
+    return job.id;
+  }, { timeout: 30_000 });
+
+  revalidatePath("/admin");
+  redirect(`/admin/jobs/${newId}`);
 }
 
 // ---------- Fixed report parts ----------

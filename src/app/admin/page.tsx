@@ -15,7 +15,7 @@ export default async function AdminHome() {
     orderBy: { createdAt: "desc" },
     take: 200,
     select: {
-      id: true, number: true, propertyAddress: true, answers: true, reportType: true, status: true,
+      id: true, number: true, propertyAddress: true, answers: true, reportType: true, status: true, copiedFromNumber: true,
       customer: { select: { name: true } },
       _count: { select: { photos: true } },
     },
@@ -49,7 +49,7 @@ export default async function AdminHome() {
                     <span className="mr-2 text-stone">{jobNumber(job.number)}</span>{job.propertyAddress}
                   </p>
                   <p className="truncate text-sm text-stone">
-                    {job.customer.name}, {reportTypeLabels[job.reportType].toLowerCase()}, {formatDate(String((job.answers as Answers).inspectionDate ?? ""))}, {job._count.photos} photos
+                    {job.customer.name}, {reportTypeLabels[job.reportType].toLowerCase()}, {formatDate(String((job.answers as Answers).inspectionDate ?? ""))}, {job._count.photos} photos{job.copiedFromNumber ? `, copy of ${jobNumber(job.copiedFromNumber)}` : ""}
                   </p>
                 </div>
                 <StatusPill status={job.status} />

@@ -119,20 +119,22 @@ enum FindingCategory {
 }
 
 model Job {
-  id              String          @id @default(cuid())
-  number          Int             @unique @default(autoincrement())
-  customerId      String
-  customer        User            @relation(fields: [customerId], references: [id])
-  propertyAddress String
-  reportType      ReportType      @default(BUILDING_AND_PEST)
-  status          JobStatus       @default(DRAFT)
+  id               String          @id @default(cuid())
+  number           Int             @unique @default(autoincrement())
+  customerId       String
+  customer         User            @relation(fields: [customerId], references: [id])
+  propertyAddress  String
+  reportType       ReportType      @default(BUILDING_AND_PEST)
+  status           JobStatus       @default(DRAFT)
   /// Answers for the fixed report parts (src/lib/report/frame.ts)
-  answers         Json            @default("{}")
-  finalisedAt     DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  sections        ReportSection[]
-  photos          Photo[]
+  answers          Json            @default("{}")
+  finalisedAt      DateTime?
+  /// Set when this report was duplicated from another job for a different client
+  copiedFromNumber Int?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  sections         ReportSection[]
+  photos           Photo[]
 
   @@index([customerId, status])
 }

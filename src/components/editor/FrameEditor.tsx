@@ -12,13 +12,15 @@ const START = ["property", "agreement"];
  * The fixed parts of the report. Rendered twice (details at the top, conclusions
  * at the bottom) but controlled by the parent, so both share one set of answers.
  */
-export function FrameEditor({ reportType, answers, onChange, saveState, onRetry, part }: {
+export function FrameEditor({ reportType, answers, onChange, saveState, onRetry, part, extras = {} }: {
   reportType: ReportType;
   answers: Answers;
   onChange: (key: string, value: string | boolean) => void;
   saveState: SaveState;
   onRetry: () => void;
   part: "start" | "end";
+  /** Extra content shown above a frame section's fields, keyed by section key. */
+  extras?: Record<string, React.ReactNode>;
 }) {
   const sections = frameFor(reportType).filter((s) => (part === "start") === START.includes(s.key));
 
@@ -30,6 +32,7 @@ export function FrameEditor({ reportType, answers, onChange, saveState, onRetry,
             <h2 className="display text-3xl text-pine">{section.title}</h2>
             <SaveBadge state={saveState} onRetry={onRetry} />
           </div>
+          {extras[section.key]}
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             {section.fields.map((field) => (
               <div key={field.key} className={field.type === "textarea" || field.help ? "sm:col-span-2" : ""}>

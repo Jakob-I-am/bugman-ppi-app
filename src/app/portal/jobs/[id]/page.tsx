@@ -20,7 +20,7 @@ export default async function PortalJob({ params }: { params: Promise<{ id: stri
     <>
       <Link href="/portal" className="text-sm font-semibold text-pine">Back to your reports</Link>
       <div className="mt-4">
-        <JobReport job={job} />
+        <JobReport job={job} pdfHref={`/api/reports/${job.id}/pdf`} />
       </div>
     </>
   );

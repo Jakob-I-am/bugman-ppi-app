@@ -1,11 +1,16 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { checkReport, finaliseJob, type FinaliseState } from "@/app/admin/actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { flushAll } from "./useAutosave";
 
 export function FinalisePanel({ jobId }: { jobId: string }) {
-  const [state, action] = useActionState<FinaliseState, FormData>(finaliseJob.bind(null, jobId), {});
+  const [state, action] = useActionState<FinaliseState, FormData>(async (prev, formData) => {
+    if (!(await flushAll())) return { problems: ["Some changes haven't saved yet. Check your signal and try again."] };
+    return finaliseJob(jobId, prev, formData);
+  }, {});
   const [checked, setChecked] = useState<string[] | null>(null);
   const [checking, setChecking] = useState(false);
   const problems = state.problems ?? checked;
@@ -13,6 +18,7 @@ export function FinalisePanel({ jobId }: { jobId: string }) {
   async function check() {
     setChecking(true);
     try {
+      await flushAll();
       setChecked(await checkReport(jobId));
     } finally {
       setChecking(false);
@@ -21,10 +27,11 @@ export function FinalisePanel({ jobId }: { jobId: string }) {
 
   return (
     <section className="rounded-lg border-2 border-pine bg-white p-5 sm:p-6">
-      <h2 className="display text-3xl text-pine">Finalise report</h2>
+      <h2 className="display text-3xl text-pine">Review and send</h2>
       <p className="mt-2 max-w-lg text-stone">
-        Checks the report is complete, locks it and emails the client a link to view it.
-        You can reopen it later if something needs correcting.
+        Everything saves as you go, so you can leave and come back to this report any time.
+        When you&apos;re ready, preview it exactly as the client will see it, then finalise.
+        Finalising locks the report and emails the client. You can reopen it later if needed.
       </p>
 
       {problems && problems.length > 0 && (
@@ -43,6 +50,10 @@ export function FinalisePanel({ jobId }: { jobId: string }) {
         <button type="button" className="btn-quiet" onClick={check} disabled={checking}>
           {checking ? "Checking…" : "Check report"}
         </button>
+        <Link href={`/admin/jobs/${jobId}/preview`} className="btn-quiet"
+          onClick={(e) => { e.preventDefault(); flushAll().then(() => { window.location.href = `/admin/jobs/${jobId}/preview`; }); }}>
+          Preview report
+        </Link>
         <form action={action}>
           <ConfirmButton className="btn-primary" message="Finalise this report and email the client?">
             Finalise and send report

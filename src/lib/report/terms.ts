@@ -12,8 +12,9 @@ export const terms = {
     "This report was prepared for the named client under the inspection agreement referenced above and should not be relied on by anyone else.",
   ],
   building: [
-    "The building inspection does not cover electrical, plumbing, gas or mechanical services, smoke alarms, swimming pool barrier compliance, asbestos, mould, or compliance with council or building approvals. Where concerns are noted, a licensed specialist should be engaged.",
+    "The building inspection does not cover electrical, plumbing, gas or mechanical services, swimming pool barrier compliance, asbestos, mould, or compliance with council or building approvals. Where concerns are noted, a licensed specialist should be engaged.",
     "No estimate of the cost of rectifying defects is included.",
+    "Smoke alarms were checked visually for presence and location only. They were not tested, and their age, type, power supply and interconnection were not assessed.",
   ],
   pest: [
     "The timber pest inspection is limited to visible evidence of subterranean termites, borers of seasoned timber and wood decay fungi, and conditions conducive to them. Termites can attack at any time, so regular inspections are recommended at the interval stated in this report.",

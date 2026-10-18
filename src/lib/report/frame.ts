@@ -83,6 +83,17 @@ export const frameSections: FrameSection[] = [
       { key: "pestConclusion", label: "Inspector's conclusion", type: "textarea", required: true },
     ],
   },
+  {
+    key: "smokeAlarms",
+    title: "Smoke alarms",
+    scope: "building",
+    fields: [
+      { key: "smokeAlarmCompliance", label: "Smoke alarms", type: "select", required: true,
+        options: ["Compliant", "Not compliant"],
+        help: "Your assessment based on the number and location of alarms seen. Alarms are not tested." },
+      { key: "smokeAlarmComments", label: "Comments", type: "textarea" },
+    ],
+  },
 ];
 
 export const frameFor = (type: ReportType) => frameSections.filter((s) => inScope(s.scope, type));

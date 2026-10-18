@@ -13,6 +13,8 @@ export type SectionTemplate = {
   repeatable: boolean;
   fields: Field[];
   elements: string[];
+  /** Asks "Smoke alarm present?" at the bottom of the area (building reports only). */
+  smokeAlarm?: boolean;
 };
 
 export const ACCESS_OPTIONS = ["Fully accessible", "Partly accessible", "Not accessible"] as const;
@@ -23,6 +25,10 @@ export const accessFields: Field[] = [
     help: "Required when not fully accessible, e.g. stored goods, no manhole, low clearance, locked" },
   { key: "notes", label: "General observations", type: "textarea" },
 ];
+
+export const smokeAlarmField: Field = {
+  key: "smokeAlarm", label: "Smoke alarm present", type: "select", required: true, options: ["Yes", "No"],
+};
 
 export const sectionTemplates: SectionTemplate[] = [
   {
@@ -52,24 +58,24 @@ export const sectionTemplates: SectionTemplate[] = [
     elements: ["Piers and stumps", "Bearers and joists", "Flooring", "Ventilation", "Moisture and drainage", "Ant capping", "Timber in contact with soil", "Debris"],
   },
   {
-    key: "room", label: "Interior room", defaultTitle: "Bedroom", repeatable: true, fields: [],
+    key: "room", smokeAlarm: true, label: "Interior room", defaultTitle: "Bedroom", repeatable: true, fields: [],
     elements: ["Ceiling", "Walls", "Floor", "Windows", "Doors", "Cornices", "Skirting and architraves", "Built-in robes", "Stairs and balustrades"],
   },
   {
-    key: "kitchen", label: "Kitchen", defaultTitle: "Kitchen", repeatable: true, fields: [],
+    key: "kitchen", smokeAlarm: true, label: "Kitchen", defaultTitle: "Kitchen", repeatable: true, fields: [],
     elements: ["Benchtops", "Cabinetry", "Sink and taps", "Splashback", "Floor", "Ceiling", "Walls", "Rangehood"],
   },
   {
-    key: "wetArea", label: "Wet area", defaultTitle: "Bathroom", repeatable: true,
+    key: "wetArea", smokeAlarm: true, label: "Wet area", defaultTitle: "Bathroom", repeatable: true,
     fields: [{ key: "moisture", label: "Moisture readings", type: "text", help: "Where tested, e.g. shower walls normal, base of vanity elevated" }],
     elements: ["Shower recess", "Waterproofing", "Wall tiles", "Floor tiles", "Grout and sealant", "Floor waste", "Vanity", "Toilet", "Bath", "Exhaust ventilation"],
   },
   {
-    key: "garage", label: "Garage or carport", defaultTitle: "Garage", repeatable: true, fields: [],
+    key: "garage", smokeAlarm: true, label: "Garage or carport", defaultTitle: "Garage", repeatable: true, fields: [],
     elements: ["Structure", "Roof", "Floor slab", "Door", "Walls"],
   },
   {
-    key: "outbuilding", label: "Outbuilding", defaultTitle: "Shed", repeatable: true, fields: [],
+    key: "outbuilding", smokeAlarm: true, label: "Outbuilding", defaultTitle: "Shed", repeatable: true, fields: [],
     elements: ["Structure", "Roof", "Floor", "Walls", "Doors and windows"],
   },
   {
@@ -82,14 +88,17 @@ export const sectionTemplates: SectionTemplate[] = [
     elements: ["Pool barrier", "Gate", "Surrounds", "Coping", "Equipment housing"],
   },
   {
-    key: "other", label: "Other area", defaultTitle: "Other area", repeatable: true, fields: [],
+    key: "other", smokeAlarm: true, label: "Other area", defaultTitle: "Other area", repeatable: true, fields: [],
     elements: [],
   },
 ];
 
 const byKey = new Map(sectionTemplates.map((t) => [t.key, t]));
 export const getTemplate = (key: string) => byKey.get(key) ?? byKey.get("other")!;
-export const sectionFields = (key: string) => [...accessFields, ...getTemplate(key).fields];
+export const sectionFields = (key: string) => {
+  const t = getTemplate(key);
+  return [...accessFields, ...t.fields, ...(t.smokeAlarm ? [smokeAlarmField] : [])];
+};
 
 /** Sections added automatically to a new job (remove any that don't apply). */
 export const defaultSections: { key: string; title?: string }[] = [

@@ -1,6 +1,7 @@
 import { displayValue, type Answers } from "@/lib/report/fields";
 import { frameFor } from "@/lib/report/frame";
 import { getTemplate } from "@/lib/report/sections";
+import { smokeAlarmSummary } from "@/lib/report/smoke";
 import { categories, categoryOrder, toneClasses, type FindingCategory } from "@/lib/report/findings";
 import { includesBuilding, includesPest, reportTypeLabels } from "@/lib/report/types";
 import type { ReportJob } from "@/lib/report/load";
@@ -9,11 +10,12 @@ import { inspector, site } from "@/lib/site";
 import { formatDate, jobNumber, photoUrls } from "@/lib/format";
 
 /** Read-only report shown to the client, and to you once finalised. */
-export function JobReport({ job, showInternal = false }: { job: ReportJob; showInternal?: boolean }) {
+export function JobReport({ job, showInternal = false, pdfHref }: { job: ReportJob; showInternal?: boolean; pdfHref?: string }) {
   const answers = (job.answers ?? {}) as Answers;
   const frame = new Map(frameFor(job.reportType).map((s) => [s.key, s]));
   const allFindings = job.sections.flatMap((s) => s.findings.map((f) => ({ ...f, sectionId: s.id, sectionTitle: s.title })));
   const byCategory = (c: FindingCategory) => allFindings.filter((f) => f.category === c);
+  const smoke = includesBuilding(job.reportType) ? smokeAlarmSummary(job) : null;
 
   return (
     <article className="text-[17px] leading-relaxed">
@@ -29,6 +31,9 @@ export function JobReport({ job, showInternal = false }: { job: ReportJob; showI
           <Meta label="Inspector" value={inspector.name} />
           <Meta label="Agreement" value={String(answers.agreementRef ?? "Not recorded")} />
         </dl>
+        {pdfHref && (
+          <a href={pdfHref} className="btn-primary mt-6">Download PDF</a>
+        )}
       </header>
 
       {/* Summary first: what a buyer needs to know before reading the detail. */}
@@ -42,6 +47,7 @@ export function JobReport({ job, showInternal = false }: { job: ReportJob; showI
               <Meta label="Overall condition" value={String(answers.overallCondition ?? "Not recorded")}
                 note="Compared with similar buildings of similar age that have been reasonably maintained" />
               <Meta label="Minor defects" value={String(answers.minorDefects ?? "Not recorded")} />
+              {smoke && <Meta label="Smoke alarms" value={smoke.compliance} />}
             </dl>
             <SummaryList title="Safety hazards" items={byCategory("SAFETY_HAZARD")} none="No safety hazards were observed." />
             <SummaryList title="Major defects" items={byCategory("MAJOR_DEFECT")} none="No major defects were observed." />
@@ -142,6 +148,18 @@ export function JobReport({ job, showInternal = false }: { job: ReportJob; showI
           </section>
         );
       })}
+
+      {smoke && (
+        <section id="smoke-alarms" className="border-b border-line py-8">
+          <h2 className="display text-3xl text-pine">Smoke alarms</h2>
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Meta label="Smoke alarms found in" value={smoke.found.join(", ") || "None"} />
+            <Meta label="No smoke alarm in" value={smoke.missing.join(", ") || "None"} />
+            <Meta label="Assessment" value={smoke.compliance} note="Based on alarms seen. Alarms were not tested." />
+          </dl>
+          {smoke.comments && <p className="mt-4 whitespace-pre-wrap">{smoke.comments}</p>}
+        </section>
+      )}
 
       <section className="py-8 text-sm">
         <h2 className="display text-3xl text-pine">Inspector</h2>
