@@ -6,6 +6,8 @@ import type { Answers } from "@/lib/report/fields";
 import { sectionTemplates, getTemplate } from "@/lib/report/sections";
 import { includesBuilding, type ReportType } from "@/lib/report/types";
 import { addSection, deleteSection, moveSection, saveFrameAnswers } from "@/app/admin/actions";
+import { COVER_KEY, hasNoSubfloor } from "@/lib/report/frame";
+import { PhotoField, type PhotoItem } from "@/components/PhotoField";
 import { FrameEditor } from "./FrameEditor";
 import { SectionCard } from "./SectionCard";
 import { FinalisePanel } from "./FinalisePanel";
@@ -14,8 +16,10 @@ import type { EditorSection } from "./types";
 
 type SectionMeta = EditorSection & { smokeAlarm?: string };
 
-export function ReportEditor({ jobId, reportType, frameAnswers, initialSections }: {
+export function ReportEditor({ jobId, reportType, frameAnswers, initialSections, jobPhotos }: {
   jobId: string; reportType: ReportType; frameAnswers: Answers; initialSections: EditorSection[];
+  /** Photos on the job itself, keyed by field ("cover", "slabEdgeComments"). */
+  jobPhotos: Record<string, PhotoItem[]>;
 }) {
   const [sections, setSections] = useState<SectionMeta[]>(
     initialSections.map((s) => ({ ...s, smokeAlarm: typeof s.answers.smokeAlarm === "string" ? s.answers.smokeAlarm : undefined })),
@@ -60,10 +64,15 @@ export function ReportEditor({ jobId, reportType, frameAnswers, initialSections 
   const frameProps = {
     reportType, answers: frame, onChange: updateFrame, saveState: frameSave.state, onRetry: frameSave.retry,
     extras: { smokeAlarms: smokeSummary },
+    jobId,
+    fieldPhotos: jobPhotos,
   };
+  const noSubfloor = hasNoSubfloor(frame);
 
   const existingKeys = new Set(sections.map((s) => s.templateKey));
-  const available = sectionTemplates.filter((t) => t.repeatable || !existingKeys.has(t.key));
+  const available = sectionTemplates.filter(
+    (t) => (t.repeatable || !existingKeys.has(t.key)) && !(t.key === "subfloor" && noSubfloor),
+  );
 
   async function add() {
     if (!templateKey) return;
@@ -109,6 +118,7 @@ export function ReportEditor({ jobId, reportType, frameAnswers, initialSections 
       <div className="sticky top-0 z-10 -mx-5 border-b border-line bg-paper/95 px-5 py-2 backdrop-blur">
         <div className="flex items-center justify-between gap-3">
           <nav aria-label="Report sections" className="flex min-w-0 gap-4 overflow-x-auto py-1 text-sm font-semibold whitespace-nowrap">
+            <a href="#cover" className="text-pine hover:underline">Cover</a>
             <a href="#frame-property" className="text-pine hover:underline">Details</a>
             {sections.map((s) => (
               <a key={s.id} href={`#s-${s.id}`} className="text-pine hover:underline">{s.title}</a>
@@ -132,6 +142,14 @@ export function ReportEditor({ jobId, reportType, frameAnswers, initialSections 
       </div>
 
       <div className="mt-6 grid gap-5">
+        <section id="cover" className="scroll-mt-20 rounded-lg border border-line bg-white p-5 sm:p-6">
+          <h2 className="display text-3xl text-pine">Cover photo</h2>
+          <p className="mt-1 text-sm text-stone">
+            Shown first on the report, full width. Usually the house from the street. Add more than one and the first becomes the main image.
+          </p>
+          <PhotoField jobId={jobId} target={{ kind: "job", fieldKey: COVER_KEY }} label="Cover" initial={jobPhotos[COVER_KEY] ?? []} />
+        </section>
+
         <FrameEditor {...frameProps} part="start" />
 
         {sections.map((s, i) => (
@@ -146,6 +164,9 @@ export function ReportEditor({ jobId, reportType, frameAnswers, initialSections 
             onDelete={() => remove(s.id, s.title)}
             onSmokeAlarmChange={(v) => patchSection(s.id, { smokeAlarm: v })}
             onTitleChange={(t) => patchSection(s.id, { title: t })}
+            notNeeded={s.templateKey === "subfloor" && noSubfloor
+              ? "Floor construction is concrete slab on ground, so a subfloor section isn't needed. You can delete it."
+              : undefined}
           />
         ))}
 

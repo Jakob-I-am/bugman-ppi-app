@@ -26,6 +26,10 @@ export const accessFields: Field[] = [
   { key: "notes", label: "General observations", type: "textarea" },
 ];
 
+const ventilationField: Field = {
+  key: "ventilation", label: "Ventilation", type: "select", required: true, options: ["Adequate", "Not adequate"],
+};
+
 export const smokeAlarmField: Field = {
   key: "smokeAlarm", label: "Smoke alarm present", type: "select", required: true, options: ["Yes", "No"],
 };
@@ -62,12 +66,15 @@ export const sectionTemplates: SectionTemplate[] = [
     elements: ["Ceiling", "Walls", "Floor", "Windows", "Doors", "Cornices", "Skirting and architraves", "Built-in robes", "Stairs and balustrades"],
   },
   {
-    key: "kitchen", smokeAlarm: true, label: "Kitchen", defaultTitle: "Kitchen", repeatable: true, fields: [],
+    key: "kitchen", smokeAlarm: true, label: "Kitchen", defaultTitle: "Kitchen", repeatable: true, fields: [ventilationField],
     elements: ["Benchtops", "Cabinetry", "Sink and taps", "Splashback", "Floor", "Ceiling", "Walls", "Rangehood"],
   },
   {
-    key: "wetArea", smokeAlarm: true, label: "Wet area", defaultTitle: "Bathroom", repeatable: true,
-    fields: [{ key: "moisture", label: "Moisture readings", type: "text", help: "Where tested, e.g. shower walls normal, base of vanity elevated" }],
+    key: "wetArea", smokeAlarm: true, label: "Wet area (bathroom, laundry, toilet)", defaultTitle: "Bathroom", repeatable: true,
+    fields: [
+      ventilationField,
+      { key: "moisture", label: "Moisture readings", type: "text", help: "Where tested, e.g. shower walls normal, base of vanity elevated" },
+    ],
     elements: ["Shower recess", "Waterproofing", "Wall tiles", "Floor tiles", "Grout and sealant", "Floor waste", "Vanity", "Toilet", "Bath", "Exhaust ventilation"],
   },
   {

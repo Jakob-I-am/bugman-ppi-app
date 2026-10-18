@@ -11,6 +11,10 @@ export type Field = {
   required?: boolean;
   /** Hidden from the customer's report. */
   internal?: boolean;
+  /** Lets photos be attached to this field (fixed report parts only). */
+  photos?: boolean;
+  /** Only shown, required and reported when another field has one of these values. */
+  showIf?: { key: string; in: string[] };
 };
 
 export type Answers = Record<string, string | boolean>;
@@ -39,9 +43,18 @@ export function isBlank(v: string | boolean | undefined) {
   return v === undefined || v === "" || v === false;
 }
 
-/** Labels of required fields that haven't been filled in. */
+/** Whether a field applies, given the other answers (see Field.showIf). */
+export function isVisible(field: Field, answers: Answers) {
+  if (!field.showIf) return true;
+  const v = answers[field.showIf.key];
+  return typeof v === "string" && field.showIf.in.includes(v);
+}
+
+/** Labels of required, applicable fields that haven't been filled in. */
 export function missingRequired(fields: Field[], answers: Answers) {
-  return fields.filter((f) => f.required && f.type !== "checkbox" && isBlank(answers[f.key])).map((f) => f.label);
+  return fields
+    .filter((f) => f.required && f.type !== "checkbox" && isVisible(f, answers) && isBlank(answers[f.key]))
+    .map((f) => f.label);
 }
 
 export function displayValue(field: Field, value: string | boolean | undefined) {

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reportInclude } from "@/lib/report/load";
 import { ReportPdf } from "@/lib/report/pdf";
+import { COVER_KEY } from "@/lib/report/frame";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,7 +28,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!job || (!isAdmin && !isOwner)) return new Response("Not found", { status: 404 });
 
   // Thumbnails (480 px) are sharp enough for printed photo grids and keep the PDF small.
-  const photos = job.sections.flatMap((s) => [...s.photos, ...s.findings.flatMap((f) => f.photos)]);
+  const photos = [...job.photos, ...job.sections.flatMap((s) => [...s.photos, ...s.findings.flatMap((f) => f.photos)])];
   const images = new Map<string, Buffer>();
   for (let i = 0; i < photos.length; i += 8) {
     await Promise.all(
@@ -42,7 +43,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     );
   }
 
-  const element = createElement(ReportPdf, { job, images, draft: job.status !== "FINALISED" });
+  // The cover photo is printed large, so use the full-size image for that one.
+  const cover = job.photos.find((p) => p.fieldKey === COVER_KEY);
+  let heroImage: Buffer | null = null;
+  if (cover) {
+    try {
+      heroImage = await fetchImage(cover.pathname);
+    } catch (err) {
+      console.error("PDF: couldn't load cover photo", err);
+    }
+  }
+
+  const element = createElement(ReportPdf, { job, images, heroImage, draft: job.status !== "FINALISED" });
   const pdf = await renderToBuffer(element as unknown as Parameters<typeof renderToBuffer>[0]);
 
   const name = `Inspection report - ${job.propertyAddress}`.replace(/[^\w\s,.-]/g, "").replace(/\s+/g, " ").slice(0, 120);

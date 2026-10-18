@@ -119,22 +119,22 @@ enum FindingCategory {
 }
 
 model Job {
-  id               String          @id @default(cuid())
-  number           Int             @unique @default(autoincrement())
-  customerId       String
-  customer         User            @relation(fields: [customerId], references: [id])
-  propertyAddress  String
-  reportType       ReportType      @default(BUILDING_AND_PEST)
-  status           JobStatus       @default(DRAFT)
+  id              String          @id @default(cuid())
+  number          Int             @unique @default(autoincrement())
+  customerId      String
+  customer        User            @relation(fields: [customerId], references: [id])
+  propertyAddress String
+  reportType      ReportType      @default(BUILDING_AND_PEST)
+  status          JobStatus       @default(DRAFT)
   /// Answers for the fixed report parts (src/lib/report/frame.ts)
-  answers          Json            @default("{}")
-  finalisedAt      DateTime?
+  answers         Json            @default("{}")
+  finalisedAt     DateTime?
   /// Set when this report was duplicated from another job for a different client
   copiedFromNumber Int?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  sections         ReportSection[]
-  photos           Photo[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  sections        ReportSection[]
+  photos          Photo[]
 
   @@index([customerId, status])
 }
@@ -176,7 +176,7 @@ model Finding {
   @@index([sectionId, position])
 }
 
-/// A photo belongs to a finding, or to a section generally.
+/// A photo belongs to a finding, a section, or the job itself (cover photos, slab edges).
 model Photo {
   id            String         @id @default(cuid())
   jobId         String
@@ -185,6 +185,8 @@ model Photo {
   section       ReportSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   findingId     String?
   finding       Finding?       @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  /// For photos on the job itself, e.g. "cover" or "slabEdgeComments"
+  fieldKey      String?
   pathname      String
   thumbPathname String
   takenAt       DateTime?

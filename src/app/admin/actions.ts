@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/session";
 import { sendJobReadyEmail } from "@/lib/email";
 import { jobNumber, photoUrls } from "@/lib/format";
 import { sanitizeAnswers } from "@/lib/report/fields";
-import { frameFields } from "@/lib/report/frame";
+import { frameFields, jobPhotoKeys } from "@/lib/report/frame";
 import { defaultSections, getTemplate, sectionFields } from "@/lib/report/sections";
 import { categories, categoryOrder } from "@/lib/report/findings";
 import { reportInclude } from "@/lib/report/load";
@@ -131,6 +131,7 @@ export async function duplicateJob(sourceId: string, _prev: DuplicateState, form
   const source = await prisma.job.findUnique({
     where: { id: sourceId },
     include: {
+      photos: { where: { sectionId: null, findingId: null } },
       sections: {
         orderBy: { position: "asc" },
         include: { photos: true, findings: { orderBy: { position: "asc" }, include: { photos: true } } },
@@ -155,6 +156,9 @@ export async function duplicateJob(sourceId: string, _prev: DuplicateState, form
     const photoRow = (p: { pathname: string; thumbPathname: string; takenAt: Date | null }) => ({
       jobId: job.id, pathname: p.pathname, thumbPathname: p.thumbPathname, takenAt: p.takenAt,
     });
+    if (source.photos.length) {
+      await tx.photo.createMany({ data: source.photos.map((p) => ({ ...photoRow(p), fieldKey: p.fieldKey })) });
+    }
     for (const s of source.sections) {
       const section = await tx.reportSection.create({
         data: { jobId: job.id, templateKey: s.templateKey, title: s.title, position: s.position, answers: s.answers as Prisma.InputJsonValue },
@@ -295,6 +299,7 @@ const photoSchema = z.object({
   target: z.union([
     z.object({ kind: z.literal("section"), sectionId: z.string() }),
     z.object({ kind: z.literal("finding"), findingId: z.string() }),
+    z.object({ kind: z.literal("job"), fieldKey: z.string() }),
   ]),
   pathname: z.string(),
   thumbPathname: z.string(),
@@ -321,10 +326,13 @@ export async function addPhoto(input: z.input<typeof photoSchema>) {
     const s = await prisma.reportSection.findUnique({ where: { id: p.target.sectionId } });
     if (s?.jobId !== p.jobId) throw new Error("Section doesn't belong to this job");
     link.sectionId = s.id;
-  } else {
+  } else if (p.target.kind === "finding") {
     const f = await prisma.finding.findUnique({ where: { id: p.target.findingId }, include: { section: true } });
     if (f?.section.jobId !== p.jobId) throw new Error("Finding doesn't belong to this job");
     link.findingId = f.id;
+  } else {
+    if (!jobPhotoKeys.includes(p.target.fieldKey)) throw new Error("Photos can't be added there");
+    link.fieldKey = p.target.fieldKey;
   }
 
   const photo = await prisma.photo.create({ data: link });

@@ -12,7 +12,7 @@ import { FindingEditor } from "./FindingEditor";
 import { SaveBadge, useAutosave } from "./useAutosave";
 import type { EditorSection } from "./types";
 
-export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMove, onDelete, onSmokeAlarmChange, onTitleChange }: {
+export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMove, onDelete, onSmokeAlarmChange, onTitleChange, notNeeded }: {
   jobId: string;
   reportType: ReportType;
   section: EditorSection;
@@ -22,6 +22,8 @@ export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMov
   onDelete: () => void;
   onSmokeAlarmChange: (value: string) => void;
   onTitleChange: (title: string) => void;
+  /** Shown as a notice when this area no longer applies (e.g. subfloor on a slab). */
+  notNeeded?: string;
 }) {
   const template = getTemplate(section.templateKey);
   const [title, setTitle] = useState(section.title);
@@ -82,6 +84,9 @@ export function SectionCard({ jobId, reportType, section, isFirst, isLast, onMov
       </summary>
 
       <div className="grid gap-5 border-t border-line p-5 sm:p-6">
+        {notNeeded && (
+          <p role="status" className="rounded-md bg-signal/25 px-3 py-2 text-sm font-semibold">{notNeeded}</p>
+        )}
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-48 flex-1">
             <label className="label" htmlFor={`title-${section.id}`}>Section name</label>

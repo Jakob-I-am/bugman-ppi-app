@@ -1,5 +1,5 @@
 import { isBlank, missingRequired, type Answers } from "./fields";
-import { frameFor } from "./frame";
+import { frameFor, hasNoSubfloor } from "./frame";
 import { getTemplate, requiredBuildingAreas } from "./sections";
 import { categories } from "./findings";
 import { includesBuilding, includesPest, inScope } from "./types";
@@ -18,6 +18,7 @@ export function reportProblems(job: ReportJob): string[] {
 
   if (includesBuilding(type)) {
     for (const area of requiredBuildingAreas) {
+      if (area.keys.includes("subfloor") && hasNoSubfloor(answers)) continue;
       if (!job.sections.some((s) => area.keys.includes(s.templateKey))) {
         problems.push(`Add a ${area.label} section. If there isn't one or it couldn't be inspected, add it and mark it not accessible with the reason.`);
       }
@@ -29,6 +30,8 @@ export function reportProblems(job: ReportJob): string[] {
   for (const s of job.sections) {
     const a = (s.answers ?? {}) as Answers;
     if (isBlank(a.access)) problems.push(`${s.title}: choose the access level`);
+    const templateMissing = missingRequired(getTemplate(s.templateKey).fields, a);
+    if (templateMissing.length) problems.push(`${s.title}: fill in ${templateMissing.join(", ")}`);
     if (includesBuilding(type) && getTemplate(s.templateKey).smokeAlarm && isBlank(a.smokeAlarm))
       problems.push(`${s.title}: record whether a smoke alarm is present`);
     else if (a.access !== "Fully accessible" && isBlank(a.accessReason)) problems.push(`${s.title}: explain what limited access`);

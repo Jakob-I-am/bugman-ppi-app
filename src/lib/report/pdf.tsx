@@ -3,8 +3,8 @@
  * Mirrors the on-screen report (src/components/JobReport.tsx); change both together.
  */
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { displayValue, type Answers } from "./fields";
-import { frameFor } from "./frame";
+import { displayValue, isVisible, type Answers } from "./fields";
+import { COVER_KEY, frameFor } from "./frame";
 import { getTemplate } from "./sections";
 import { categories, categoryOrder, type FindingCategory } from "./findings";
 import { includesBuilding, includesPest, reportTypeLabels } from "./types";
@@ -36,6 +36,7 @@ const s = StyleSheet.create({
   badge: { fontSize: 8, fontFamily: "Helvetica-Bold", marginBottom: 3 },
   photos: { flexDirection: "row", flexWrap: "wrap", marginTop: 6 },
   photo: { width: 120, height: 120, objectFit: "cover", marginRight: 6, marginBottom: 6 },
+  hero: { width: "100%", height: 300, objectFit: "cover", marginBottom: 14 },
   notice: { backgroundColor: "#fdf3d0", padding: 6, marginTop: 6 },
   footer: { position: "absolute", bottom: 24, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: c.stone },
   draft: { position: "absolute", top: 300, left: 60, fontSize: 90, color: "#e5e7eb", transform: "rotate(-30deg)" },
@@ -63,12 +64,19 @@ function Photos({ ids, images }: { ids: string[]; images: Map<string, Buffer> })
   );
 }
 
-export function ReportPdf({ job, images, draft }: { job: ReportJob; images: Map<string, Buffer>; draft: boolean }) {
+export function ReportPdf({ job, images, heroImage, draft }: {
+  job: ReportJob; images: Map<string, Buffer>; heroImage: Buffer | null; draft: boolean;
+}) {
   const answers = (job.answers ?? {}) as Answers;
   const frame = new Map(frameFor(job.reportType).map((f) => [f.key, f]));
   const all = job.sections.flatMap((sec) => sec.findings.map((f) => ({ ...f, sectionTitle: sec.title })));
   const byCategory = (cat: FindingCategory) => all.filter((f) => f.category === cat);
   const smoke = includesBuilding(job.reportType) ? smokeAlarmSummary(job) : null;
+  const photosFor = (key: string) => job.photos.filter((p) => p.fieldKey === key).map((p) => p.id);
+  const moreCover = photosFor(COVER_KEY).slice(1);
+  const propertyFields = frame.get("property")!.fields.filter(
+    (f) => f.key !== "inspectionDate" && f.key !== "inspectionTime" && isVisible(f, answers),
+  );
   const str = (k: string) => (typeof answers[k] === "string" && answers[k] ? String(answers[k]) : "Not recorded");
 
   const list = (title: string, cat: FindingCategory, none: string) => {
@@ -88,6 +96,10 @@ export function ReportPdf({ job, images, draft }: { job: ReportJob; images: Map<
       <Page size="A4" style={s.page}>
         {draft && <Text fixed style={s.draft}>DRAFT</Text>}
 
+        {heroImage && (
+          // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt
+          <Image style={s.hero} src={{ data: heroImage, format: "jpg" }} />
+        )}
         <Text style={s.brand}>{site.name} · {site.phone} · ABN {site.abn}</Text>
         <Text style={s.label}>{reportTypeLabels[job.reportType]} inspection report, job {jobNumber(job.number)}</Text>
         <Text style={s.h1}>{job.propertyAddress}</Text>
@@ -144,10 +156,28 @@ export function ReportPdf({ job, images, draft }: { job: ReportJob; images: Map<
 
         <Text style={s.h2}>Property details</Text>
         <View style={s.grid}>
-          {frame.get("property")!.fields.filter((f) => f.key !== "inspectionDate" && f.key !== "inspectionTime").map((f) => (
+          {propertyFields.filter((f) => f.type !== "textarea").map((f) => (
             <Field key={f.key} label={f.label} value={displayValue(f, answers[f.key]) ?? "Not recorded"} />
           ))}
         </View>
+        {propertyFields.filter((f) => f.type === "textarea").map((f) => {
+          const value = displayValue(f, answers[f.key]);
+          const ids = f.photos ? photosFor(f.key) : [];
+          if (!value && ids.length === 0) return null;
+          return (
+            <View key={f.key}>
+              <Text style={s.h3}>{f.label}</Text>
+              {value ? <Text>{value}</Text> : null}
+              <Photos ids={ids} images={images} />
+            </View>
+          );
+        })}
+        {moreCover.length > 0 && (
+          <View>
+            <Text style={s.h3}>Property photos</Text>
+            <Photos ids={moreCover} images={images} />
+          </View>
+        )}
         {answers.scopeVariations ? (
           <View><Text style={s.h3}>Agreed changes to the standard scope</Text><Text>{String(answers.scopeVariations)}</Text></View>
         ) : null}

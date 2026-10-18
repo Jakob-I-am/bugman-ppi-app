@@ -1,5 +1,5 @@
-import { displayValue, type Answers } from "@/lib/report/fields";
-import { frameFor } from "@/lib/report/frame";
+import { displayValue, isVisible, type Answers } from "@/lib/report/fields";
+import { COVER_KEY, frameFor } from "@/lib/report/frame";
 import { getTemplate } from "@/lib/report/sections";
 import { smokeAlarmSummary } from "@/lib/report/smoke";
 import { categories, categoryOrder, toneClasses, type FindingCategory } from "@/lib/report/findings";
@@ -16,9 +16,24 @@ export function JobReport({ job, showInternal = false, pdfHref }: { job: ReportJ
   const allFindings = job.sections.flatMap((s) => s.findings.map((f) => ({ ...f, sectionId: s.id, sectionTitle: s.title })));
   const byCategory = (c: FindingCategory) => allFindings.filter((f) => f.category === c);
   const smoke = includesBuilding(job.reportType) ? smokeAlarmSummary(job) : null;
+  const photosFor = (key: string) => job.photos.filter((p) => p.fieldKey === key).map((p) => p.id);
+  const [hero, ...moreCover] = photosFor(COVER_KEY);
+  const propertyFields = frame.get("property")!.fields.filter(
+    (f) => f.key !== "inspectionDate" && f.key !== "inspectionTime" && isVisible(f, answers),
+  );
 
   return (
     <article className="text-[17px] leading-relaxed">
+      {hero && (
+        <figure className="mb-6">
+          <a href={photoUrls(hero).fullUrl} target="_blank" rel="noopener" className="block overflow-hidden rounded-lg">
+            {/* eslint-disable-next-line @next/next/no-img-element -- private, auth-checked images */}
+            <img src={photoUrls(hero).fullUrl} alt={`The property at ${job.propertyAddress}`}
+              className="aspect-[16/10] w-full object-cover" />
+          </a>
+          {moreCover.length > 0 && <Photos ids={moreCover} label="Property" />}
+        </figure>
+      )}
       <header className="border-b-4 border-pine pb-6">
         <p className="text-sm font-semibold text-stone">
           {reportTypeLabels[job.reportType]} inspection report, job {jobNumber(job.number)}
@@ -97,10 +112,22 @@ export function JobReport({ job, showInternal = false, pdfHref }: { job: ReportJ
       <section className="border-b border-line py-8">
         <h2 className="display text-3xl text-pine">Property details</h2>
         <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-          {frame.get("property")!.fields.filter((f) => f.key !== "inspectionDate" && f.key !== "inspectionTime").map((f) => (
+          {propertyFields.filter((f) => f.type !== "textarea").map((f) => (
             <Meta key={f.key} label={f.label} value={displayValue(f, answers[f.key]) ?? "Not recorded"} />
           ))}
         </dl>
+        {propertyFields.filter((f) => f.type === "textarea").map((f) => {
+          const value = displayValue(f, answers[f.key]);
+          const ids = f.photos ? photosFor(f.key) : [];
+          if (!value && ids.length === 0) return null;
+          return (
+            <div key={f.key} className="mt-4">
+              <h3 className="font-bold">{f.label}</h3>
+              {value && <p className="whitespace-pre-wrap">{value}</p>}
+              <Photos ids={ids} label={f.label} />
+            </div>
+          );
+        })}
         {answers.scopeVariations && (
           <div className="mt-4"><h3 className="font-bold">Agreed changes to the standard scope</h3><p className="whitespace-pre-wrap">{String(answers.scopeVariations)}</p></div>
         )}

@@ -51,6 +51,11 @@ export default async function AdminJobPage({ params }: { params: Promise<{ id: s
     })),
   }));
 
+  const jobPhotos: Record<string, ReturnType<typeof withUrls>> = {};
+  for (const p of job.photos) {
+    if (p.fieldKey) (jobPhotos[p.fieldKey] ??= []).push({ id: p.id, ...photoUrls(p.id) });
+  }
+
   return (
     <>
       <Link href="/admin" className="text-sm font-semibold text-pine">Back to jobs</Link>
@@ -67,7 +72,7 @@ export default async function AdminJobPage({ params }: { params: Promise<{ id: s
         <div className="mt-4"><DuplicatePanel jobId={job.id} /></div>
       </header>
 
-      <ReportEditor jobId={job.id} reportType={job.reportType} frameAnswers={job.answers as Answers} initialSections={sections} />
+      <ReportEditor jobId={job.id} reportType={job.reportType} frameAnswers={job.answers as Answers} initialSections={sections} jobPhotos={jobPhotos} />
     </>
   );
 }
