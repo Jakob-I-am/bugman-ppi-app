@@ -58,8 +58,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const element = createElement(ReportPdf, { job, images, heroImage, draft: job.status !== "FINALISED" });
   // Streamed rather than returned in one piece: Vercel caps normal function responses
   // at 4.5 MB, and a report with lots of photos is bigger than that. Streams aren't capped.
-  const pdf = await renderToStream(element as unknown as Parameters<typeof renderToStream>[0]);
-  const body = Readable.toWeb(pdf as unknown as Readable) as unknown as ReadableStream<Uint8Array>;
+  let body: ReadableStream<Uint8Array>;
+  try {
+    const pdf = await renderToStream(element as unknown as Parameters<typeof renderToStream>[0]);
+    body = Readable.toWeb(pdf as unknown as Readable) as unknown as ReadableStream<Uint8Array>;
+  } catch (err) {
+    console.error(`PDF: render failed for job ${job.number} (${job.id})`, err);
+    // A readable page instead of an empty download, so the person knows what happened.
+    return new Response(
+      `<!doctype html><meta name="viewport" content="width=device-width"><body style="font-family:sans-serif;padding:24px">
+<h1>We couldn't create this PDF</h1><p>Please try again shortly, or contact us and we'll send it to you.</p></body>`,
+      { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } },
+    );
+  }
 
   const name = `Inspection report - ${job.propertyAddress}`.replace(/[^\w\s,.-]/g, "").replace(/\s+/g, " ").slice(0, 120);
   return new Response(body, {

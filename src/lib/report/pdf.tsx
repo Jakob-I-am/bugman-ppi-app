@@ -2,7 +2,7 @@
  * PDF version of the report, for clients, agents and conveyancers to file.
  * Mirrors the on-screen report (src/components/JobReport.tsx); change both together.
  */
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Font, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { displayValue, isVisible, type Answers } from "./fields";
 import { COVER_KEY, frameFor } from "./frame";
 import { getTemplate } from "./sections";
@@ -14,11 +14,37 @@ import type { ReportJob } from "./load";
 import { inspector, site } from "../site";
 import { formatDate, jobNumber } from "../format";
 
+// react-pdf's automatic hyphenation has layout bugs that can crash rendering
+// ("unsupported number") on some text. Breaking only at spaces avoids them.
+Font.registerHyphenationCallback((word) => [word]);
+
+/**
+ * The built-in PDF fonts only cover Western European characters. Emoji and other
+ * symbols typed on a phone can break layout, so swap them out before rendering.
+ */
+const KEEP = new Set("‘’“”–—…•€™".split(""));
+function cleanText(value: string) {
+  return value
+    .replace(/\t/g, " ")
+    .replace(/\r\n?/g, "\n")
+    .split("")
+    .filter((ch) => ch === "\n" || (ch >= " " && ch <= "\u00ff") || KEEP.has(ch))
+    .join("");
+}
+function cleanDeep<T>(value: T): T {
+  if (typeof value === "string") return cleanText(value) as T;
+  if (Array.isArray(value)) return value.map(cleanDeep) as T;
+  if (value && typeof value === "object" && !(value instanceof Date) && !Buffer.isBuffer(value)) {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, cleanDeep(v)])) as T;
+  }
+  return value;
+}
+
 const c = { pine: "#1f3d2b", signal: "#f2c230", ink: "#1c2321", stone: "#5f6a65", line: "#d9ddd5", red: "#b91c1c" };
 const toneColour = { danger: c.red, warn: "#b88a00", info: c.pine };
 
 const s = StyleSheet.create({
-  page: { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontSize: 10, fontFamily: "Helvetica", color: c.ink, lineHeight: 1.4 },
+  page: { paddingTop: 40, paddingBottom: 56, paddingHorizontal: 40, fontSize: 10, fontFamily: "Helvetica", color: c.ink },
   brand: { fontSize: 9, color: c.stone, marginBottom: 4 },
   h1: { fontSize: 22, fontFamily: "Helvetica-Bold", color: c.pine, marginBottom: 8 },
   h2: { fontSize: 15, fontFamily: "Helvetica-Bold", color: c.pine, marginTop: 18, marginBottom: 6 },
@@ -64,9 +90,10 @@ function Photos({ ids, images }: { ids: string[]; images: Map<string, Buffer> })
   );
 }
 
-export function ReportPdf({ job, images, heroImage, draft }: {
+export function ReportPdf({ job: rawJob, images, heroImage, draft }: {
   job: ReportJob; images: Map<string, Buffer>; heroImage: Buffer | null; draft: boolean;
 }) {
+  const job = cleanDeep(rawJob);
   const answers = (job.answers ?? {}) as Answers;
   const frame = new Map(frameFor(job.reportType).map((f) => [f.key, f]));
   const all = job.sections.flatMap((sec) => sec.findings.map((f) => ({ ...f, sectionTitle: sec.title })));
@@ -188,7 +215,7 @@ export function ReportPdf({ job, images, heroImage, draft }: {
           const findings = [...sec.findings].sort((x, y) => categoryOrder.indexOf(x.category) - categoryOrder.indexOf(y.category));
           return (
             <View key={sec.id}>
-              <Text style={s.h2} minPresenceAhead={60}>{sec.title}</Text>
+              <Text style={s.h2}>{sec.title}</Text>
               <Text style={s.muted}>{template.label}, {String(a.access ?? "access not recorded").toLowerCase()}</Text>
               {a.access !== "Fully accessible" && a.accessReason ? (
                 <Text style={s.notice}>Access limited: {String(a.accessReason)}</Text>
@@ -219,7 +246,7 @@ export function ReportPdf({ job, images, heroImage, draft }: {
         })}
 
         {smoke && (
-          <View wrap={false}>
+          <View>
             <Text style={s.h2}>Smoke alarms</Text>
             <View style={s.grid}>
               <Field label="Smoke alarms found in" value={smoke.found.join(", ") || "None"} />
@@ -230,7 +257,7 @@ export function ReportPdf({ job, images, heroImage, draft }: {
           </View>
         )}
 
-        <View wrap={false}>
+        <View>
           <Text style={s.h2}>Inspector</Text>
           <Text style={s.value}>{inspector.name}, {site.name}</Text>
           {inspector.credentials.map((cred) => <Text key={cred}>{cred}</Text>)}
