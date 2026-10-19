@@ -1,5 +1,6 @@
 import { createElement } from "react";
-import { renderToBuffer } from "@react-pdf/renderer";
+import { Readable } from "node:stream";
+import { renderToStream } from "@react-pdf/renderer";
 import { get } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -8,7 +9,7 @@ import { ReportPdf } from "@/lib/report/pdf";
 import { COVER_KEY } from "@/lib/report/frame";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 async function fetchImage(pathname: string) {
   const result = await get(pathname, { access: "private" });
@@ -55,10 +56,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const element = createElement(ReportPdf, { job, images, heroImage, draft: job.status !== "FINALISED" });
-  const pdf = await renderToBuffer(element as unknown as Parameters<typeof renderToBuffer>[0]);
+  // Streamed rather than returned in one piece: Vercel caps normal function responses
+  // at 4.5 MB, and a report with lots of photos is bigger than that. Streams aren't capped.
+  const pdf = await renderToStream(element as unknown as Parameters<typeof renderToStream>[0]);
+  const body = Readable.toWeb(pdf as unknown as Readable) as unknown as ReadableStream<Uint8Array>;
 
   const name = `Inspection report - ${job.propertyAddress}`.replace(/[^\w\s,.-]/g, "").replace(/\s+/g, " ").slice(0, 120);
-  return new Response(new Uint8Array(pdf), {
+  return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${name}.pdf"`,
